@@ -1,7 +1,7 @@
 #![allow(unused_imports)]
 
 use std::{fs::File, io::BufReader, io::BufRead};
-use aocutils::UnwrappedLinesExt;
+use aocutils::ulines::UnwrappedLinesExt;
 
 fn main() {
     // let r1 = part1();
