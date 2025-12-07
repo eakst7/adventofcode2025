@@ -1,16 +1,21 @@
 #![allow(unused_imports)]
 #![allow(unused)]
-use std::collections::{ HashSet };
+use std::collections::{ HashSet, HashMap };
 use std::fs::{ File, read_to_string };
 use std::io::{BufRead, BufReader, Read};
+use std::thread::sleep;
+use std::time::Duration;
 use aocutils::ulines::UnwrappedLinesExt;
 
+static mut CACHE_HITS: u32 = 0;
+
 fn main() {
-    let r1 = part1("day7/input.txt");
-    let r2 = part2("day7/input.txt");
+    let r1 = part1("input.txt");
+    let r2 = part2("input.txt");
 
     println!("Part 1: {}", r1.unwrap());
     println!("Part 2: {}", r2.unwrap());
+    println!("  Cache hits: {}", unsafe { CACHE_HITS });
 }
 
 fn part1(input_filename: &str) -> std::io::Result<u64> {
@@ -39,7 +44,60 @@ fn part1(input_filename: &str) -> std::io::Result<u64> {
 
 fn part2(input_filename: &str) -> std::io::Result<u64> {
     let file = File::open(input_filename)?;
-    todo!()
+
+    let lines: Vec<String> = file.unwrapped_lines().collect();
+    let mut m: HashMap<(usize,usize), u64> = HashMap::new();
+    let mut beam: usize =lines[0].find('S').unwrap();
+
+    let total = take_path(&mut m, &lines, beam, 1, 0);
+
+    Ok(total as u64)
+}
+
+fn take_path(cache: &mut HashMap<(usize,usize), u64>, lines: &[String], beam: usize, row: usize, call_depth: u8) -> u64 {
+    if lines.len() <= row { return 1; }
+    visualize(lines, beam, row);
+
+    let r = cache.get(&(beam, row));
+    if r.is_some() {
+        unsafe { CACHE_HITS += 1; }
+        return *r.unwrap(); 
+    }
+
+    let mut splitters: HashSet<usize> = HashSet::new();
+    splitters.clear();
+    lines[row].chars().enumerate().for_each(|(i, c)| {
+        if c == '^' { splitters.insert(i); }
+    });
+
+    if splitters.contains(&beam) {
+        let r1 = take_path(cache, &lines, beam-1, row+1, call_depth+1);
+        cache.insert((beam, row), r1);
+        let r2 = take_path(cache, &lines, beam+1, row+1, call_depth+1);
+        cache.insert((beam, row), r2);
+        // dbg!(call_depth);
+        return r1 + r2;
+    } else {
+        let r = take_path(cache, &lines, beam, row+1, call_depth+1);    
+        cache.insert((beam, row), r);
+        // dbg!(call_depth);
+        return r;
+    }
+}
+
+fn visualize(lines: &[String], beam: usize, row: usize) {
+    // print!("{esc}[2J{esc}[1;1H", esc = 27 as char);
+
+    // let mut lines2: Vec<String> = lines.iter().map(|l| l.clone()).collect();
+    // let mut s = String::new();
+    // s.push_str(&lines2[row][0..beam]);
+    // s.push('|');
+    // s.push_str(&lines2[row][beam + 1..]);
+    // lines2[row] = s;
+    // for l in lines2 {
+    //     println!("{}", l);
+    // }
+    // sleep(Duration::from_millis(5));
 }
 
 fn split_beams(beams: &HashSet<u64>, splitters: &HashSet<u64>) -> (u64,HashSet<u64>) {
@@ -68,7 +126,7 @@ fn test_part1() {
 fn test_part2() {
     let r = part2("test.txt");
     assert!(r.is_ok());
-    assert_eq!(r.unwrap(), 0);
+    assert_eq!(r.unwrap(), 40);
 
 }
 
