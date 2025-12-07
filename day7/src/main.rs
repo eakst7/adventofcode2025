@@ -47,14 +47,21 @@ fn part2(input_filename: &str) -> std::io::Result<u64> {
 
     let lines: Vec<String> = file.unwrapped_lines().collect();
     let mut m: HashMap<(usize,usize), u64> = HashMap::new();
-    let mut beam: usize =lines[0].find('S').unwrap();
+    let mut splitter_cache: HashMap<usize, HashSet<usize>> = HashMap::new();
+    let mut beam: usize = lines[0].find('S').unwrap();
 
-    let total = take_path(&mut m, &lines, beam, 1, 0);
+    let total = take_path(&mut m, &mut splitter_cache, &lines, beam, 1, 0);
 
     Ok(total as u64)
 }
 
-fn take_path(cache: &mut HashMap<(usize,usize), u64>, lines: &[String], beam: usize, row: usize, call_depth: u8) -> u64 {
+fn take_path(
+        cache: &mut HashMap<(usize,usize), u64>,
+        splitter_cache: &mut HashMap<usize, HashSet<usize>>,
+        lines: &[String],
+        beam: usize,
+        row: usize,
+        call_depth: u8) -> u64 {
     if lines.len() <= row { return 1; }
     visualize(lines, beam, row);
 
@@ -64,21 +71,30 @@ fn take_path(cache: &mut HashMap<(usize,usize), u64>, lines: &[String], beam: us
         return *r.unwrap(); 
     }
 
-    let mut splitters: HashSet<usize> = HashSet::new();
-    splitters.clear();
-    lines[row].chars().enumerate().for_each(|(i, c)| {
-        if c == '^' { splitters.insert(i); }
-    });
+    let splitters = splitter_cache.get(&row);
+    let mut splitters = match splitters {
+        Some(s) => {
+            s
+        },
+        None => {
+            let mut s = HashSet::new();
+            lines[row].chars().enumerate().for_each(|(i, c)| {
+                if c == '^' { s.insert(i); }
+            });
+            splitter_cache.insert(row, s);
+            splitter_cache.get(&row).unwrap()
+        }
+    };
 
     if splitters.contains(&beam) {
-        let r1 = take_path(cache, &lines, beam-1, row+1, call_depth+1);
+        let r1 = take_path(cache, splitter_cache, &lines, beam-1, row+1, call_depth+1);
         cache.insert((beam, row), r1);
-        let r2 = take_path(cache, &lines, beam+1, row+1, call_depth+1);
+        let r2 = take_path(cache, splitter_cache, &lines, beam+1, row+1, call_depth+1);
         cache.insert((beam, row), r2);
         // dbg!(call_depth);
         return r1 + r2;
     } else {
-        let r = take_path(cache, &lines, beam, row+1, call_depth+1);    
+        let r = take_path(cache, splitter_cache, &lines, beam, row+1, call_depth+1);    
         cache.insert((beam, row), r);
         // dbg!(call_depth);
         return r;
